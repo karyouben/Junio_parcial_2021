@@ -1,9 +1,14 @@
 package fp.vacunado;
 
+import java.time.LocalDate;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -30,8 +35,37 @@ public class Vacunas {
 		this.vacunas=new HashSet<>(vacunas);
 	}
 	
+	
+	@Override
+	public String toString() {
+		return "Vacunas [vacunas=" + vacunas + "]";
+	}
+
+	public Set<Vacunado> getVacunas() {
+		return vacunas;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(vacunas);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Vacunas other = (Vacunas) obj;
+		return Objects.equals(vacunas, other.vacunas);
+	
 	// ejercicio 1
 	
+
+	}
+
 	public Boolean existeAlgunUsuarioResidenteVacunadoEnSuCumple(Set<String> provincias) {
 		Predicate<Vacunado> p1=v->v.fechaNacimiento().getMonth().equals(v.fechaNacimiento().getMonth());
 		Predicate<Vacunado> p2=v->v.fechaNacimiento().getDayOfMonth()==(v.fechaNacimiento().getDayOfMonth());
@@ -55,6 +89,8 @@ public class Vacunas {
 				.getAsDouble();
 	}
 	
+	//ejercicio 3
+	
 	public Map<String,Set<Marca>> conjuntoDeMarcasPorProvincia(){
 		Map<String,Set<Marca>> res=new HashMap<>();
 		for(Vacunado v:vacunas) {
@@ -69,5 +105,70 @@ public class Vacunas {
 		}return res;
 	}
 	
+	//ejercicio 4
+	
+	public List<String> listaNombreUsuariosDeMayorEdadVacunadosCompletos(Marca marca,Integer n){
+		return vacunas.stream()
+				.filter(v->v.marca().equals(marca) && v.pautaCompleta())
+				.sorted(Comparator.comparing(Vacunado::edad).thenComparing(Comparator.comparing(Vacunado::fechaAdministracion)).reversed())
+				.limit(n)
+				.map(Vacunado::usuario)
+				.collect(Collectors.toList());
+	}
+	
+	//ejercicio 5
+	
+	public Map<String,Integer> usuarioMasJovenVacunadoPorProvincia(){
+		return vacunas.stream()
+				.filter(v->v.pautaCompleta())
+				.collect(Collectors.groupingBy(Vacunado::usuario,
+						Collectors.collectingAndThen(Collectors.minBy(Comparator.comparing(Vacunado::fechaNacimiento).reversed()
+								.thenComparing(Comparator.naturalOrder())), v->v.get().edad())));
+	}
+	
+	//ejercicio 6
+	public Map<Marca,Double> porcentajeVacunasPorUsuarioPorRangoDeEdad(Integer edadMin,Integer edadMax){
+		Map<Marca,Double> res=null;
+		Map<Marca,Long> m=numeroUsuariosPorMarca(edadMin, edadMax);
+		Long p=numeroUsuariosVacunadosTotal(edadMin, edadMax);
+		
+		if(p>0) {
+			res=m.entrySet().stream()
+					.collect(Collectors.toMap(v->v.getKey(), v->v.getValue()*100.0/p));
+		}return res;
+	}
+	
+
+
+	private Map<Marca,Long> numeroUsuariosPorMarca(Integer edadMin,Integer edadMax){
+		return vacunas.stream()
+				.filter(v->v.edad()>=edadMin && v.edad()<=edadMax)
+				.collect(Collectors.groupingBy(Vacunado::marca,Collectors.counting()));
+	}
+	
+	private Long numeroUsuariosVacunadosTotal(Integer edadMin, Integer edadMax) {
+		return vacunas.stream()
+				.filter(v->v.edad()>=edadMin && v.edad()<=edadMax)
+				.count();
+	}
+	
+	//ejercicio 7
+	
+	public LocalDate fechaEnLaQueSeAdministraronMasDosis(Marca marca,String provincia) {
+		Map<LocalDate,Integer> m=dosisPorFecha(marca, provincia);
+		Comparator<Map.Entry<LocalDate, Integer>> c=Comparator.comparing(Map.Entry::getValue);
+		return m.entrySet().stream()
+				.max(c)
+				.get()
+				.getKey();
+	}
+	
+	public Map<LocalDate,Integer> dosisPorFecha(Marca marca,String provincia){
+		return vacunas.stream()
+				.filter(v->v.marca().equals(marca) && v.provincia().equals(provincia))
+				.collect(Collectors.groupingBy(Vacunado::fechaAdministracion,Collectors.collectingAndThen(Collectors.counting(), v->v.intValue())));
+		
+	}
+
 
 }
